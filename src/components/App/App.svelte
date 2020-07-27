@@ -20,13 +20,7 @@
 	} from "svelthree";
 	import Moveable from "svelte-moveable";
 
-	let targets = [];
-	let frames = [{
-		translate: [0,0],
-	},
-	{
-		translate: [0,0],
-	}];
+	let frames = [];
 
 	let cubeGeometry = new BoxBufferGeometry(1, 1, 1);
 	let cubeMaterial = new MeshStandardMaterial();
@@ -35,15 +29,23 @@
 	let floorMaterial = new MeshStandardMaterial();
 
 	onMount(() => {
-		targets = [].slice.call(document.getElementsByTagName('Canvas'));
-		frames.size = document.getElementsByClassName('editor')[0].getBoundingClientRect();
+		let targets = [].slice.call(document.getElementsByTagName('Canvas'));
+
+		for(let i = 0; i < targets.length; i++) {
+			frames.push({
+				target: targets[i],
+				translate: [0,0],
+				size: document.getElementsByClassName('editor')[0].getBoundingClientRect()
+			})
+		}
+
+		console.log({ frames })
 	})
 
 	window.addEventListener('online', () => isOffline.set(false));
 	window.addEventListener('offline', () => isOffline.set(true));
-	window.addEventListener('resize', (e) => {
-		console.log(e);
-	});
+
+	$: console.log(frames);
 </script>
 
 <style src="./App.scss"></style>
@@ -150,38 +152,38 @@
 	</Canvas>
 </div>
 
-<Moveable
-	target={targets}
-	resizable={true}
-	snappable={true}
-	keepRatio={false}
-	throttleResize={0}
-	renderDirections={["nw","n","ne","w","e","sw","s","se"]}
-	bounds={{
-		top: 0,
-		left: 0,
-		rigth: window.innerWidth,
-		bottom: window.innerHeight
-	}}
-	edge={false}
-	zoom={1}
-	origin={true}
-	padding={{"left":0,"top":0,"right":0,"bottom":0}}
-	on:resizeGroupStart={({ detail: { events } }) => {
-		events.forEach((ev, i) => {
-			console.log({ ev, i });
-            ev.dragStart && ev.dragStart.set(frames[i].translate);
-        });
-	}}
-	on:resizeGroup={({ detail: { events } }) => {
-		events.forEach((ev, i) => {
-			console.log(ev);
-			if (ev.width >= 500 && ev.height >= 500) {
-				frames[i].translate = ev.drag.beforeTranslate;
-				ev.style.width = `${ev.width}px`;
-				ev.style.height = `${ev.height}px`;
-				ev.style.transform = `translate(${ev.drag.beforeTranslate[0]}px, ${ev.drag.beforeTranslate[1]}px)`;
-			}
-        });
-	}}
-/>
+{#each frames as frame}
+	<Moveable
+		target={frame.target}
+		resizable={true}
+		snappable={true}
+		keepRatio={false}
+		throttleResize={0}
+		renderDirections={["nw","n","ne","w","e","sw","s","se"]}
+		bounds={{
+			top: 0,
+			left: 0,
+			rigth: window.innerWidth,
+			bottom: window.innerHeight
+		}}
+		edge={false}
+		zoom={1}
+		origin={true}
+		padding={{"left":0,"top":0,"right":0,"bottom":0}}
+		on:resizeStart={({ detail: { setOrigin, dragStart } }) => {
+        setOrigin(["%", "%"]);
+        dragStart && dragStart.set(frame.translate);
+    }}
+    on:resize={({ detail: { target, width, height, drag } }) => {
+				const beforeTranslate = drag.beforeTranslate;
+				target.style.width = `${width}px`;
+				target.style.height = `${height}px`;
+				target.style.transform = `translate(${beforeTranslate[0]}px, ${beforeTranslate[1]}px)`;
+    }}
+    on:resizeEnd={({ detail: { lastEvent } }) => {
+        if (lastEvent) {
+            frame.translate = lastEvent.drag.beforeTranslate;
+        }
+    }}
+	/>
+{/each}
